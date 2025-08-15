@@ -1,6 +1,3 @@
-[DWA — Windows Update Mock (PowerShell).md](https://github.com/user-attachments/files/21801412/DWA.Windows.Update.Mock.PowerShell.md)
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
-
 # DWA — Windows Update Mock (PowerShell)
 
 A Windows Update–style full-screen experience for demos/testing. It shows a convincing progress UI, temporarily blocks input, hides/clips the cursor, suppresses hotkeys, and can optionally disable/enable specific HID devices (touchpad/touchscreen/digitizer/pen) similar to Device Manager.
