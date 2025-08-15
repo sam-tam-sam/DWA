@@ -175,6 +175,7 @@ public static class Native {
     'i2c hid device'
   )
 
+  # FIXED: proper list initialization
   $DisabledIds = New-Object System.Collections.Generic.List[string]
 
   function Ensure-PnpDeviceModule {
