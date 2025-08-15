@@ -1,22 +1,38 @@
 Windows Update Mock (PowerShell)
-A full-screen Windows Update–style UI with input blocking, cursor hiding/clipping, hotkey suppression, and temporary disabling/enabling of targeted HID devices (touchpad/touchscreen/digitizer). Designed for demos, kiosks, and testing.
+A full-screen Windows Update–style experience for demos, kiosks, and testing. It shows a realistic “Installing Windows Updates” UI, restricts user input, hides/clips the cursor, suppresses escape hotkeys, and temporarily disables targeted HID devices (touchpad/touchscreen/digitizer/pen), then restores them on exit. Includes a headless fallback for non-interactive sessions.
 
-Important: This script requires Administrator privileges and must run in STA because it uses WinForms and low-level keyboard hooks.
+Important: Requires Administrator privileges and STA mode.
 
 Features
-Full-screen, top-most fake “Installing Windows Updates” UI.
+UI and Focus
 
-Input restriction:
+Full-screen, borderless, top-most “Installing Windows Updates” screen.
 
-BlockInput, cursor hide, cursor clip to screen.
+Animated 0–100% progress with contextual status messages.
 
-Suppress Win key and common escape combos: Alt+Tab, Alt+F4, Ctrl+Esc.
+Watchdog re-enforces top-most, focus, and cursor position.
 
-Periodic watchdog to re-enforce top-most, focus, and input block.
+Input Restriction
 
-Temporarily disable selected HID devices (touchpad/touchscreen/digitizer/pen) and re-enable them on exit.
+Blocks user input via BlockInput.
 
-Headless fallback: if running in a non-interactive session (e.g., some service agents), the script auto-runs without UI and simulates progress while still applying and restoring device state.
+Hides the cursor and clips it to the screen bounds.
+
+Suppresses Win key and common escape combos: Alt+Tab, Alt+F4, Ctrl+Esc.
+
+Device Management (HID)
+
+Temporarily disables targeted HID devices (touchpad/touchscreen/digitizer/pen).
+
+Safely re-enables them on exit.
+
+Skips HID management gracefully if PnpDevice module is unavailable.
+
+Headless Fallback
+
+Detects non-interactive sessions (e.g., some service/agent contexts).
+
+Runs without UI and input blocking, simulates progress, and performs full cleanup.
 
 Requirements
 Windows 10/11.
@@ -25,90 +41,111 @@ Administrator privileges.
 
 STA mode (Single-Threaded Apartment).
 
-PowerShell with .NET Framework 4.x and WinForms:
+Windows PowerShell 5.1 recommended (with .NET Framework 4.x and WinForms).
 
-Windows PowerShell 5.1 recommended.
+PnpDevice PowerShell module (included in modern Windows). If missing, HID disable/enable is skipped.
 
-PnpDevice module (built into modern Windows) for device enable/disable:
-
-If unavailable, HID disable/enable is skipped with a warning.
-
-Quick Run (One-Liner)
-From an elevated Command Prompt (Run as administrator):
+Quick Start (One-Liner)
+Run from an elevated Command Prompt (Run as administrator):
 
 powershell -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
 
-Notes:
-
--sta is required (WinForms).
-
--ep Bypass applies to the launched process only.
-
--nop and -w hidden are optional for cleaner UX.
-
-If the environment doesn’t resolve powershell in PATH, use the full path:
+If PATH doesn’t resolve powershell:
 
 "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
 
-For 32-bit shell on 64-bit Windows:
+From a 32‑bit shell on 64‑bit Windows:
 
 "C:\Windows\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
 
+Notes
+
+-sta is required because the script uses WinForms and low-level keyboard hooks.
+
+-ep Bypass applies only to the launched process.
+
+-nop and -w hidden are optional for a cleaner UX.
+
 Headless Mode
-When the script detects a non-interactive desktop (e.g., some remote agents/services), it:
+When the script detects a non-interactive desktop:
 
-Skips UI and input blocking.
+Skips UI, input blocking, and hooks.
 
-Disables targeted HID devices (if possible).
+Applies HID device changes (if possible).
 
 Simulates progress in the console.
 
 Restores devices on exit.
 
-This avoids “UserInteractive” errors when no desktop is available.
+This avoids “UserInteractive” errors when no desktop is available (e.g., some agent/service sessions).
 
-Safety and Cleanup
-The script attempts to:
+HID Targeting and Exclusions
+The script matches device names case-insensitively using patterns:
 
-Always unblock input, unclip the cursor, and show the cursor on exit.
+Targets include: touch pad/touchpad, touch screen/touchscreen, digitizer/pen, HID-compliant touch devices, Wacom.
 
-Re-enable any devices it disabled.
+Exclusions include: keyboard/mouse, generic USB input devices, essential system HID devices.
 
-Perform a final cleanup in a “finally” block to handle unexpected errors.
-
-If a device fails to re-enable immediately (“Generic failure”), try:
-
-pnputil /scan-devices
-
-Re-run Enable-PnpDevice for that InstanceId in an elevated, interactive session.
-
-In rare cases, sign-out/restart may be needed for touch/pen stacks.
-
-Customize Target Devices
-Targets are matched case-insensitively by name patterns. You can edit these arrays in the script:
-
-TargetPatterns: touch pad/touchpad, touch screen/touchscreen, digitizer/pen, HID-compliant variants, Wacom.
-
-Exclusions: keyboard, mouse, generic USB input, essential HID devices.
-
-This prevents accidental loss of core input like keyboards/mice.
+Edit the TargetPatterns and Exclusions arrays in the script to suit specific hardware.
 
 Local Run (Cloned Repo)
-If you cloned the repo, run from an elevated PowerShell:
+From an elevated Windows PowerShell:
 
 powershell.exe -sta -ExecutionPolicy Bypass -File .\script.ps1
 
-Security Notes
-Running with Administrator privileges and bypassing execution policy carries risk—only run scripts from trusted sources.
-
-The script intentionally restricts input and device functionality temporarily; test in a safe environment before production use.
-
 Troubleshooting
-“‘powershell’ is not recognized”: use full path (System32 or Sysnative).
+'powershell' is not recognized:
 
-“UserInteractive” error: run in a user desktop session (local or RDP), or rely on headless mode in non-interactive environments.
+Use the full path: System32 or Sysnative (for 32‑bit shell on 64‑bit OS).
 
-HID re-enable failures: use pnputil /scan-devices, or re-run Enable-PnpDevice for each InstanceId in an elevated, interactive session.
+UI fails with “not in UserInteractive mode”:
+
+Run in an interactive user desktop session (local or via RDP), or rely on headless mode.
+
+HID re-enable “Generic failure”:
+
+Run a device rescan: pnputil /scan-devices
+
+Re-run enabling per InstanceId in elevated PowerShell:
+
+Enable-PnpDevice -InstanceId 'HID......' -Confirm:$false
+
+In rare cases, sign-out or restart may be needed for touch/pen stacks.
+
+No PnpDevice module:
+
+The script continues without HID disable/enable and logs a warning.
+
+Security Notes
+Running with Administrator and bypassing execution policy has risk—use trusted sources only.
+
+The script intentionally restricts input and hides/limits devices temporarily; test in a safe environment first.
+
+Known Limitations
+Some environments block UI or hooks (non-interactive sessions).
+
+Certain HID devices may require a rescan or reboot to fully restore after changes.
+
+Third-party security tools may flag input blocking or Win32 API calls.
+
+File Structure
+script.ps1
+
+Main script with UI, input blocking, device targeting, and headless fallback.
 
 License
-MIT (or your preferred license).
+MIT
+
+Contributing
+Issues and pull requests are welcome. Please include:
+
+OS version
+
+PowerShell version
+
+Whether the session was interactive or headless
+
+Relevant console logs (redact sensitive info)
+
+Support
+Open an issue if you have questions, bugs, or feature requests.
