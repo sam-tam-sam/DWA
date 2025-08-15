@@ -1,129 +1,165 @@
-DWA — Windows Update Mock (PowerShell)
-A Windows Update–style full-screen UI that temporarily blocks input, hides/clips the cursor, suppresses hotkeys, and can optionally disable/enable specific HID devices (touchpad/touchscreen/digitizer) similar to Device Manager. Intended for demos/testing and should be used carefully and only in controlled environments.
+[DWA — Windows Update Mock (PowerShell).md](https://github.com/user-attachments/files/21801412/DWA.Windows.Update.Mock.PowerShell.md)
+<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
 
-Requires: Administrator + STA
+# DWA — Windows Update Mock (PowerShell)
 
-OS: Windows 10/11
+A Windows Update–style full-screen experience for demos/testing. It shows a convincing progress UI, temporarily blocks input, hides/clips the cursor, suppresses hotkeys, and can optionally disable/enable specific HID devices (touchpad/touchscreen/digitizer/pen) similar to Device Manager.
 
-Shell: Windows PowerShell 5.1 recommended (pwsh may work but STA/WinForms is more reliable on 5.1)
+- Requires: Administrator + STA
+- OS: Windows 10/11
+- Shell: Windows PowerShell 5.1 recommended
 
-Important: This script can temporarily block user input and disable certain HID devices; test in a safe environment first.
+> Important: This script can block user input and temporarily disable HID devices. Test in a controlled environment.
 
-Quick Start (one-liner)
-Run from CMD with admin privileges:
+## Features
 
-text
+- Full-screen, topmost UI resembling Windows Update.
+- Animated progress with stage messages until completion.
+- Input restriction:
+    - BlockInput API (mouse/keyboard).
+    - Low-level keyboard hook to suppress Win, Alt+Tab, Alt+F4, Ctrl+Esc.
+    - Cursor hidden and clipped to screen.
+- Optional HID control:
+    - Temporarily disables touchpad/touchscreen/digitizer/pen during run.
+    - Re-enables previously disabled devices during cleanup.
+- Safety-first cleanup:
+    - Always unblocks input, unhooks keyboard, restores cursor, unclips cursor, and re-enables devices even on error.
+- Headless fallback:
+    - In non-interactive sessions (e.g., some remote agents), runs without UI/input blocking, simulates progress, and still performs cleanup.
+
+
+## Quick Start
+
+Run from CMD with Administrator privileges:
+
+```
 powershell -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
-Run from CMD (alternate raw URL form):
+```
 
-text
+Alternative raw URL form:
+
+```
 powershell -nop -w hidden -sta -ep Bypass -c "iwr -useb https://github.com/sam-tam-sam/DWA/raw/main/script.ps1 | iex"
-Run using a fully qualified path (helpful if PATH doesn’t include powershell):
+```
 
-text
+Fully-qualified path (if PATH doesn’t include powershell):
+
+```
 "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
-If running a 32‑bit process on 64‑bit Windows, use Sysnative:
+```
 
-text
+From a 32‑bit process on 64‑bit Windows (use Sysnative):
+
+```
 "C:\Windows\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
-Download to temp then execute (works better behind some proxies/filters):
+```
 
-text
+Download first, then execute (more reliable behind some proxies/AV):
+
+```
 "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -sta -ep Bypass -c "$u='https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1';$p=$env:TEMP+'\dwa.ps1';iwr -useb $u -outfile $p; & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -sta -ep Bypass -File $p"
-What it does
-Full-screen, topmost UI that mimics Windows Update progress.
+```
 
-Progress bars, status messages, and timed completion.
 
-Temporarily blocks input via BlockInput and low-level keyboard hook.
+## What It Does
 
-Hides and clips the mouse cursor to the screen.
+- Presents a Windows Update–like full-screen UI with progress bars and messages.
+- Enforces topmost window, focus, and periodic watchdog checks.
+- Hides/clips cursor and centers it periodically.
+- Suppresses common escape hotkeys to keep the UI in focus.
+- Optionally disables targeted HID devices during the run, then restores them.
 
-Suppresses common escape hotkeys (Win, Alt+Tab, Alt+F4, Ctrl+Esc).
 
-Optionally disables selected HID devices (touchpad, touchscreen, digitizer, pen) during the run, then re-enables them at the end.
+## Headless Mode
 
-Safety and recovery
-The script includes comprehensive cleanup in all exit paths:
+If the script detects a non-interactive desktop (common with some remote agents/services), it will:
 
-Unblocks input.
+- Skip UI, hooks, and input blocking.
+- Simulate progress via console logs.
+- Perform the same HID disable/enable workflow and cleanup.
+- Avoids “UserInteractive” WinForms errors.
 
-Unhooks keyboard hook.
 
-Restores cursor visibility and unclips cursor.
+## Requirements
 
-Re-enables previously disabled HID devices.
+- Administrator privileges (elevated CMD/PowerShell).
+- STA mode (use `-sta`).
+- Windows PowerShell 5.1 (strongly recommended for WinForms/STA).
+- PnpDevice module (built-in on Windows 10/11) for HID operations; if unavailable, HID steps are skipped safely.
 
-If any HID device fails to re-enable automatically:
 
-Re-scan devices:
+## Safety \& Recovery
 
-text
+The script contains robust cleanup in all execution paths:
+
+- Unblocks input.
+- Unhooks keyboard hook.
+- Restores cursor visibility and unclips cursor.
+- Re-enables any devices that were disabled by the script.
+
+If a HID device fails to re-enable automatically:
+
+- Re-scan devices:
+
+```
 pnputil /scan-devices
-Re-enable a specific device:
+```
 
-text
-Enable-PnpDevice -InstanceId '<DEVICE_INSTANCE_ID>' -Confirm:$false
-Perform these from an elevated (Run as administrator) PowerShell session. Success rates are higher in an interactive user session (local or RDP).
+- Re-enable a specific device (from elevated PowerShell):
 
-Headless mode (non-interactive sessions)
-If the script detects a non-interactive desktop session (common in some remote agents/services), it will automatically run in headless mode:
+```
+Enable-PnpDevice -InstanceId "<DEVICE_INSTANCE_ID>" -Confirm:$false
+```
 
-No UI, no input blocking, no cursor operations.
+- Success rate is higher in an interactive session (local or via RDP). In rare cases, a reboot may be required for a full driver stack reload.
 
-Simulated progress logs in the console.
 
-HID disable/enable still attempted with cleanup.
+## Troubleshooting
 
-This prevents errors like “not running in UserInteractive mode.”
+- “powershell is not recognized”:
+    - Use full path:
 
-Requirements
-Administrator privileges.
-
-STA thread apartment (use -sta).
-
-Windows PowerShell 5.1 recommended for WinForms and STA.
-
-PnpDevice module (built-in on Windows 10/11) for HID operations; if unavailable, HID disable/enable is skipped safely.
-
-Typical usage
-Open CMD as Administrator and run:
-
-text
-powershell -nop -w hidden -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
-Or on an interactive RDP/local session to see the UI and enforce input restrictions:
-
-text
-"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
-Troubleshooting
-'powershell' is not recognized…
-
-Use the full path:
-
-text
+```
 "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" ...
-From 32‑bit host on 64‑bit Windows, use Sysnative path.
+```
 
-UI fails with “not in UserInteractive mode”:
+    - From a 32‑bit host on 64‑bit Windows, use the Sysnative path shown above.
+- WinForms error “not running in UserInteractive mode”:
+    - You’re in a non-interactive session. Run in an interactive desktop (local/RDP) to see the UI, or rely on headless mode behavior.
+- HID re-enable “Generic failure”:
+    - Run `pnputil /scan-devices` and re-run `Enable-PnpDevice` for the affected InstanceId from an elevated interactive PowerShell.
 
-You are in a non-interactive session; run from an interactive desktop (local or RDP), or rely on headless mode behavior.
 
-Some HID devices don’t re-enable:
+## Usage Examples
 
-Re-scan devices:
+Run the full experience on an interactive desktop:
 
-text
-pnputil /scan-devices
-Re-enable manually:
+```
+"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
+```
 
-text
-Enable-PnpDevice -InstanceId '<DEVICE_INSTANCE_ID>' -Confirm:$false
-Consider a short reboot if a driver stack needs reload.
+Run headless (automatically chosen in non-interactive sessions):
 
-Security notice
-This tool intentionally restricts input and manipulates HID devices; use only with explicit consent and in controlled environments.
+```
+powershell -sta -ep Bypass -c "iwr -useb https://raw.githubusercontent.com/sam-tam-sam/DWA/main/script.ps1 | iex"
+```
 
-Review and understand the script before running it.
 
-License
+## Security Notice
+
+- This tool intentionally restricts input and manipulates HID devices. Use only with explicit consent and in controlled environments.
+- Review the code before running in production scenarios.
+
+
+## License
+
 This project is provided as-is, without warranty. Use at your own risk.
+
+***
+
+File name: README.md
+
+<div style="text-align: center">⁂</div>
+
+[^1]: https://github.com/sam-tam-sam/DWAgent-Tools
+
